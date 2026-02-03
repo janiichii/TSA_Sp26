@@ -41,11 +41,11 @@ library(openxlsx)
 
 getwd()
 
-Re_Energy <- read_excel(path = "../Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx",
+Re_Energy <- read_excel(path = "./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx",
                         skip = 12, sheet = "Monthly Data", col_names = FALSE)
 Re_Energy
 
-read_col_names <- read_excel(path="../Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx", 
+read_col_names <- read_excel(path="./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx", 
                              skip = 10, n_max = 1, sheet = "Monthly Data", col_names = FALSE) 
 colnames(Re_Energy) <- read_col_names
 head(Re_Energy)
@@ -117,6 +117,7 @@ Display and interpret the time series plot for each of these variables. Try to m
 biomass_plot <- autoplot(energy_ts[,1]) +
   xlab("Time") +
   ylab("Production") +
+  ggtitle("biomass production") +
   labs(colors = "Production") +
   geom_hline(yintercept = biomass_mean, linetype = "dashed")
 
@@ -127,6 +128,7 @@ print(biomass_plot)
 renewable_plot <- autoplot(energy_ts[,2]) +
   xlab("Time") +
   ylab("Production") +
+  ggtitle("renewable production") +
   labs(colors = "Production") +
   geom_hline(yintercept = renewable_mean, linetype = "dashed")
 
@@ -137,6 +139,7 @@ print(renewable_plot)
 hydro_plot <- autoplot(energy_ts[,3]) +
   xlab("Time") +
   ylab("Production") +
+  ggtitle("hydroelectric consumption") +
   labs(colors = "Production") +
   geom_hline(yintercept = hydro_mean, linetype = "dashed")
 
@@ -144,6 +147,7 @@ print(hydro_plot)
 
 ```
 
+The first two plots share similar trend as they both have an upward trend and changed a lot in the past few decades. The last plot's line of best fit looks flat compared to the first two.
 
 ## Question 5
 
