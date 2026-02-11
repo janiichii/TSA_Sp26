@@ -79,6 +79,7 @@ renew_diff_plot <- autoplot(renew_diff) +
   ggtitle("Differenced Total Renewable Energy Production, lag = 1") +
   theme(plot.title = element_text(hjust = 0.5)) +
   geom_line(color = "blue")
+renew_diff_plot
 
 ```
 
