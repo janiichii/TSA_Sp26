@@ -208,9 +208,9 @@ Apply the Mann Kendall, Spearman correlation rank test and ADF. Are the results 
 
 ```{r}
 #SMK test
-smk2 <- SeasonalMannKendall(renew_yearly_ts)
-print("Results for Seasonal Mann Kendall /n")
-print(summary(smk2))
+mktest <- MannKendall(renew_yearly_ts)
+print("Results for Mann Kendall /n")
+print(summary(mktest))
 
 #Spearman
 year <- c(year(first(energy_data$Month)):year(last(energy_data$Month)))
