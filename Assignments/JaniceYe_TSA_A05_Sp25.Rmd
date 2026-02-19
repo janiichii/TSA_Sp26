@@ -1,7 +1,7 @@
 ---
 title: "ENV 797 - Time Series Analysis for Energy and Environment Applications | Spring 2026"
 subtitle: "Assignment 5 - Due date 02/17/26"
-author: "Student Name"
+author: "Janice Ye"
 output: pdf_document
 geometry: margin=2.54cm
 editor_options: 
@@ -37,26 +37,26 @@ Consider the same data you used for A04 from the spreadsheet "Table_10.1_Renewab
 ```{r}
 #Importing data set - using readxl package
 energy_data <- read_excel(
-  path="./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx",
+  path = "./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx",
   skip = 12,
-  sheet="Monthly Data",
-  col_names=FALSE
+  sheet = "Monthly Data",
+  col_names = FALSE
   ) 
 
 #Now let's extract the column names from row 11 only
 read_col_names <- read_excel(
-  path="./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx",
+  path ="./Data/Table_10.1_Renewable_Energy_Production_and_Consumption_by_Source.xlsx",
   skip = 10,
   n_max = 1, 
-  sheet="Monthly Data",
-  col_names=FALSE
+  sheet ="Monthly Data",
+  col_names = FALSE
   )
 
 colnames(energy_data) <- read_col_names
 nobs <- nrow(energy_data)
 
-nobs=nrow(energy_data)
-nvar=ncol(energy_data)
+nobs = nrow(energy_data)
+nvar = ncol(energy_data)
 
 head(energy_data)
 
@@ -74,7 +74,21 @@ You may either filter out the “Not Available” rows and then convert the colu
 Important: Note that we dropping the missing observations instead of interpolating is becasue they only happen in the beginning of the series!
 
 ```{r}
+#new dataset
+energy_data <- select(energy_data, "Month", "Solar Energy Consumption", "Wind Energy Consumption")
 
+#convert columns
+energy_data$Month <- as.Date(energy_data$Month)
+class(energy_data$Month)
+
+energy_data$`Solar Energy Consumption` <- as.numeric(energy_data$`Solar Energy Consumption`)
+class(energy_data$`Solar Energy Consumption`)
+
+energy_data$`Wind Energy Consumption` <- as.numeric(energy_data$`Wind Energy Consumption`)
+class(energy_data$`Wind Energy Consumption`)
+
+#drop NAs
+energy_data <- na.omit(energy_data)
 
 ```
 
@@ -83,6 +97,23 @@ Important: Note that we dropping the missing observations instead of interpolati
 Plot the Solar and Wind energy consumption over time using ggplot. Plot each series on a separate graph. No need to add legend. Add informative names to the y axis using `ylab()`. Explore the function `scale_x_date()` on ggplot and see if you can change the x axis to improve your plot. Hint: use `scale_x_date(date_breaks = "5 years", date_labels = "%Y")")`
 
 ```{r}
+#Solar
+solar_plot <- ggplot(energy_data, 
+                     aes(x = Month, y = `Solar Energy Consumption`)) +
+  geom_line()
+  ylab("Solar Energy Consumption") +
+  xlab("Month") +
+  scale_x_date(date_breaks = "5 years", date_labels = "%Y")
+solar_plot
+
+#Wind
+wind_plot <- ggplot(energy_data, 
+                     aes(x = Month, y = `Wind Energy Consumption`)) +
+  geom_line()
+  ylab("Wind Energy Consumption") +
+  xlab("Month") +
+  scale_x_date(date_breaks = "5 years", date_labels = "%Y")
+wind_plot
 
 ```
 
@@ -91,8 +122,13 @@ Plot the Solar and Wind energy consumption over time using ggplot. Plot each ser
 Now plot both series in the same graph, also using ggplot(). Use function `scale_color_manual()` to manually add a legend to ggplot. Make the solar energy consumption red and wind energy consumption blue. Add informative name to the y axis using `ylab("Energy Consumption)`. And use function `scale_x_date()` to set x axis breaks every 5 years.
 
 ```{r}
-
-
+combined_plot <- ggplot(energy_data, aes(x = Month)) +
+  geom_line(aes(y = `Solar Energy Consumption`, color = "Solar")) +
+  geom_line(aes(y = `Wind Energy Consumption`, color = "Wind")) +
+  ylab("Energy Consumption") +
+  scale_x_date(date_breaks = "5 years", date_labels = "%Y") +
+  scale_color_manual(values = c("Solar" = "red", "Wind" = "blue"))
+combined_plot
 
 ```
 
@@ -113,33 +149,66 @@ Additional info on `decompose()`.
 Transform wind and solar series into a time series object and apply the decompose function on them using the additive option, i.e., `decompose(ts_data, type = "additive")`. What can you say about the trend component? What about the random component? Does the random component look random? Or does it appear to still have some seasonality on it?
 
 ```{r}
+#transform into time series
+solar_ts <- ts(energy_data$`Solar Energy Consumption`, start = c(1984,1), frequency = 12)
+wind_ts <- ts(energy_data$`Wind Energy Consumption`, start = c(1984,1), frequency = 12)
+
+#decompose
+solar_decomp <- decompose(solar_ts, type = "additive")
+plot(solar_decomp)
+
+wind_decomp <- decompose(wind_ts, type = "additive")
+plot(wind_decomp)
 
 ```
 
+> Answer: For solar, the series is nearly flat for a long time, then starts rising sharply. The oscillations (seasonality) are present throughout, but once the level rises, the swings look larger in the observed series simply because the overall scale grows. The trend is accelerating upward, indicating exponential growth. The seasonal pattern is very stable over time with roughly constant amplitude. The remainder shows increasing variance over time and has clear oscillatory structure near the end. Together, this implies that additive model of decomposition is probably not the best choice here because the variance or seasonal magnitude appears to grow with the level. For wind, the observed is very flat until the mid-2000s, then steady growth, and after 2015 it becomes highly volatile. Trend is smooth and strongly increasing after 2005. Seasonal component is stable and repeating. Random has huge late swings after 2010. Together, the series becomes more variable as it grows. And seasonality may be effectively multiplicative.
 
 ### Q5
 
 Use the decompose function again but now change the type of the seasonal component from additive to multiplicative. What happened to the random component this time?
 
 ```{r}
+#solar
+solar_multi_decomp <- decompose(solar_ts, type = "multiplicative")
+plot(solar_multi_decomp)
+
+#wind
+wind_multi_decomp <- decompose(wind_ts, type = "multiplicative")
+plot(wind_multi_decomp)
 
 ```
+
+> Answer: For solar, multiplicative model looks more appropriate than additive model. Random component stays tight around 1 with relatively constant variance after 1990, which means the model has absorbed the swings into seasonal or trend components, instead of leaving it as exploding residuals. For wind, multiplicative model also looks more appropriate than additive model. After 2000, the remainder stays fairly tight around 1.
 
 ### Q6
 
 When fitting a model to this data, do you think you need all the historical data? Think about the data from 80s, 90s and early 20s. Are there any information from those years we might need to forecast the next six months of Solar and/or Wind consumption. Explain your response.
 
-> Answer:
+> Answer: Probably no because based on previous questions, we can see that trend can suddenly change a lot that does not resonate historic behaviors. For a short term forecast, the recent years contain the most relevant information. Earlier data primarily reflect outdated levels and relationships that can introduce bias and reduce forecast.  accuracy.
 
 ### Q7
 
 Create a new time series object where historical data starts on January 2014. Hint: use `filter()` function so that you don't need to point to row numbers, .i.e, `filter(xxxx, year(Date) >= 2014 )`. Apply the decompose function `type=additive` to this new time series. Comment on the results. Does the random component look random? 
 
 ```{r}
+energy_data_new <- filter(energy_data, year(Month) >= 2014)
+
+#solar
+solar_2014_ts <- ts(energy_data_new[,2], start = c(2014,1), frequency = 12)
+
+solar_2014_decomp <- decompose(solar_2014_ts, type = "additive")
+plot(solar_2014_decomp)
+
+#wind
+wind_2014_ts <- ts(energy_data_new[,3], start = c(2014,1), frequency = 12)
+
+wind_2014_decomp <- decompose(wind_2014_ts, type = "additive")
+plot(wind_2014_decomp)
 
 ```
 
-> Answer:
+> Answer: For solar, observed component has a upward trend with strong repeating seasonal swings. Trend component is smooth, steadily increasing with faster growth near the end. Seasonal component is very consistent, and random component does not look completely random. It has clusters and some bigger deviations. This suggests that there might be shocks or that the trend is changing too fast for classical decomposition to fully capture. For wind, observed component shows upward movement. Trend component rises steadily, and seasonal component is very consistent. Random component looks more random than solar. 
 
 ## Identify and Remove outliers
 
@@ -148,15 +217,43 @@ Create a new time series object where historical data starts on January 2014. Hi
 Apply the `tsclean()` to both time series object you created on Q4. Did the function removed any outliers from the series? Hint: Use `autoplot()` to check if there is difference between cleaned series and original series.
 
 ```{r}
+#solar
+solar_clean_ts <- tsclean(solar_ts)
+
+solar_compare_plot <- autoplot(solar_ts, series = "original solar plot") +
+  autolayer(solar_clean_ts, series = "cleaned solar plot")
+solar_compare_plot
+
+#wind
+wind_clean_ts <- tsclean(wind_ts)
+
+wind_compare_plot <- autoplot(wind_ts, series = "original wind plot") +
+  autolayer(wind_clean_ts, series = "cleaned wind plot")
+wind_compare_plot
 
 ```
+
+> Answer: For solar, outliers are removed because based on the comparison plot, originial plot has more up and downs while cleaned plot smoothed out these spikes. Similar pattern applies to wind, with cleand plot smoothed out the ups and downs compared to the original plot.
 
 ### Q9
 
 Redo number Q8 but now with the time series you created on Q7, i.e., the series starting in 2014. Using what `autoplot()` again what happened now? Did the function removed any outliers from the series?
 
 ```{r}
+#solar
+solar_2014_clean <- tsclean(solar_2014_ts)
+
+solar_compare_2014_plot <- autoplot(solar_2014_ts, series = "original solar plot since 2014") +
+  autolayer(solar_2014_clean, series = "cleaned solar plot since 2014")
+solar_compare_2014_plot
+
+#wind
+wind_2014_clean <- tsclean(wind_2014_ts)
+
+wind_compare_2014_plot <- autoplot(wind_2014_ts, series = "original wind plot since 2014") +
+  autolayer(wind_2014_clean, series = "cleaned wind plot since 2014")
+wind_compare_2014_plot
 
 ```
 
-> Answer:
+> Answer: For solar, it is very clear that cleaned plot removed a down spike around 2025, showing it effectively removed outliers. For wind, cleaned and originial plot exactly overlap which means it did not have any outlier or the function did not removed any.
