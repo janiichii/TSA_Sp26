@@ -147,22 +147,46 @@ ggPacf(deseason_n1, lag.max = 40) +
   theme(plot.title = element_text(hjust = 0.5))
 
 ```
-> Answer: The number of differencing seems to be 1 because my plot in Q2 had a very slowly decaying ACF and Q3 typically shows ADF failing to reject a unit root. The function ndiffs() also proves the same. Based on the previous plot, the model seems to be ARIMA(0,1,1). In the differenced ACF, there is a strong negative spike at lag 1 and the remaining lags are mostly near the bounds. This is a classic signature of an MA(1) model. The differenced PACF does not show a clean cutoff at a small lag as it has several scattered significant negatives, which argues against a simple AR(p) with small p. Thus, I set p = 0.
+> Answer: The number of differencing seems to be 1 because my plot in Q2 had a very slowly decaying ACF and Q3 typically shows ADF failing to reject a unit root. The function ndiffs() also proves the same. Based on the previous plot, the model seems to be ARIMA(1,1,0). In the differenced ACF, there is a strong negative spike at lag 1 and the remaining lags are mostly near the bounds. This is a classic signature of an MA(1) model. To account for the strong AR(1) relationship seen in the PACF, I set p = 1.
 
 ### Q5
 
 Use `Arima()` from package "forecast" to fit an ARIMA model to your series considering the order estimated in Q4. You should allow constants in the model, i.e., `include.mean = TRUE` or `include.drift=TRUE`. **Print the coefficients** in your report. Hint: use the `cat()` or `print()` function to print.
 
 ```{r}
-arima011 <- Arima(ng_deseason, order = c(0,1,1), include.drift = TRUE)
+arima110 <- Arima(ng_deseason, order = c(1,1,0), include.drift = TRUE)
 
-print(arima011)
+print(arima110)
 
 ```
+
+> Answer: AR(1) is -0.1586 which is a weak, negative autoregressive term and suggests that we might be over-differencing. To fix the problem, I will now try ARIMA(1,0,0) to resolve the problem of over-differencing.
+
+```{r}
+arima100 <- Arima(ng_deseason, order = c(1,0,0), include.drift = TRUE)
+
+print(arima100)
+```
+
+> Answer: This is a major improvement over the previous model. AR improves to a very strong, positive autoregressive coefficient. But just to double check on MA, I will run ARIMA (1,0,1). If MA(1)'s coefficient is small, I will keep with the ARIMA(1,0,0) model.
+
+```{r}
+arima101 <- Arima(ng_deseason, order = c(1,0,1), include.drift = TRUE)
+
+print(arima101)
+```
+
+> Answer: This result is very clear that we should not inlcude MA(1) because the coefficient is too small. We will stick with ARIMA(1,0,0)
 
 ### Q6
 
 Now plot the residuals of the ARIMA fit from Q5 along with residuals ACF on the same window. You may use the $checkresiduals()$ function to get the plots. Do the residual series look like a white noise series? Why?
+
+```{r}
+checkresiduals(arima100)
+
+```
+> Answer: It looks like a white-noise series because the residuals are centered around zero and show a relatively constant spread over the entire timeframe. here are no obvious cycles, trends, or large changing waves. However, the p-value is smaller than 0.05, rejecting null hypothesis that the serie is purely white noise. This means that there are remaining autocorrelation in the residuals.
 
 ## Modeling the original series (with seasonality)
 
@@ -171,18 +195,66 @@ Now plot the residuals of the ARIMA fit from Q5 along with residuals ACF on the 
 Repeat Q3-Q6 for the original series (the complete series that has the seasonal component). Note that when you model the seasonal series, you need to specify the seasonal part of the ARIMA model as well, i.e., $P$, $D$ and $Q$.
 
 ```{r}
+#ADF
+adf.test(ng_ts)
+
+#MKT
+mk.test(as.numeric(ng_ts))
 
 ```
 
+> Answer: Both p-values from ADF and Mann-Kendall tests are smaller than 0.05. This means that we will reject null hypothesis that there is an unit-root and that there is no trend. In fact, the series is stationary and has an unit root. Since tau is 0.651, the serie follows an upward trend.
+
+```{r}
+n_diff_original <- ndiffs(ng_ts)
+cat("Number of Differencing Needed", n_diff_original)
+
+```
+
+```{r}
+original_n1 <- diff(ng_ts, differences = 1, lag = 12)
+
+#ACF
+ggAcf(original_n1, lag.max = 40) +
+  labs(title = "Original ACF") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+#PACF
+ggPacf(original_n1, lag.max = 40) +
+  labs(title = "Original PACF") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+> Answer: Based on these ACF and PACF plots, possible ARIMA models are (1,0,0)(1,0,1). p = 1 because in PACF, there is a very strong, dominant spike at Lag 1, followed by a sharp cut-off which signals AR(1). d and q are 0 because there are no sharp cut-offs in ACF. P = 1 because in PACF, there are also significant spikes at Lag 12 and 13. This could suggest a Seasonal Autoregressive SAR(1) term, and there is a very prominent negative spike at Lag 12, and the spikes at Lags 24 and 36 are significantly smaller in ACF which suggests Q = 1.
+
+```{r}
+arima100101 <- Arima(ng_ts, order = c(1,0,0), seasonal = c(1,0,1), include.drift = TRUE)
+
+print(arima100101)
+```
+
+> Answer: SAR(1) is 0.9919, which is extremely close to 1.0, which indicates that the seasonal component is non-stationary. It means that I should have used seasonal differencing ($D=1$) instead of trying to model the seasonality with an AR term. Now I would change seasonal from (1,0,1) to (0,1,1).
+
+```{r}
+arima100011 <- Arima(ng_ts, order = c(1,0,0), seasonal = c(0,1,1), include.drift = TRUE)
+
+print(arima100011)
+```
+
+> Answer: This model improved a lot. AR(1) is 0.7416/0.0442 = 16.78, SMA(1) is -0.7026/0.0557 = -12.61, and drift is 358.7988/37.5875 = 9.55. These numbers are all significant and indicate a strong, positive relationship with the previous month's value. Now I need to double check with the residuals.
+
+```{r}
+checkresiduals(arima100011)
+
+```
+
+> Answer: P-value is 0.2777 and is greater than 0.05. I failed o reject the null hypothesis that the residuals are white noise.
 
 ### Q8
 
 Compare the residual series for Q7 and Q6. Can you tell which ARIMA model is better representing the Natural Gas Series? Is that a fair comparison? Explain your response.
 
-```{r}
-
-```
-
+> Answer: The model from Q7 is better than Q6 because the test result from Q6 indicate that the model is failing to capture some systematic patterns whereas the result from Q7 fail to reject null hypothesis, indicating that the residuals are independent white noise. However, this is not a fair comparison because the first model is already deseasonalized while the second one is the original data. A fair comparison requires the models to be tested on the exact same target variable.
 
 ## Checking your model with the auto.arima()
 
@@ -193,15 +265,23 @@ Compare the residual series for Q7 and Q6. Can you tell which ARIMA model is bet
 Use the $auto.arima()$ command on the **deseasonalized series** to let R choose the model parameter for you. What's the order of the best ARIMA model? Does it match what you specified in Q4?
 
 ```{r}
+deseason_test <- auto.arima(ng_deseason)
+
+deseason_test
 
 ```
 
+> Answer: The result shows that the best ARIMA model is ARIMA(1,1,1)(0,0,1). It does not match with mine.
 
 ### Q10
 
 Use the $auto.arima()$ command on the **original series** to let R choose the model parameters for you. Does it match what you specified in Q7?
 
 ```{r}
+original_test <- auto.arima(ng_ts)
+
+original_test
 
 ```
 
+> Answer: The result is ARIMA(1,0,0)(0,1,1) which perfectly match with my answer in Q7.
